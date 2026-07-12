@@ -113,12 +113,6 @@
     transform:translate(-50%,-50%) scale(.4);
     display:none;
   }
-  #hitZone {
-    position:absolute; left:50%; top:78%;
-    width:76px; height:76px; margin:-38px 0 0 -38px;
-    border:4px dashed rgba(255,255,255,.75); border-radius:50%;
-    z-index:1;
-  }
   #plate {
     position:absolute; left:50%; top:90%;
     width:54px; height:26px; margin-left:-27px;
@@ -131,9 +125,9 @@
     width:52px; height:9px; border-radius:5px;
     background:linear-gradient(#e0b06a, #b57d33);
     border:1px solid #7a5420;
-    transform-origin:left center; transform:rotate(-58deg);
+    transform-origin:left center; transform:rotate(78deg); /* かまえはキャッチャー側 */
   }
-  #batterWrap.swinging #bat { transition:transform .08s ease-in; transform:rotate(38deg); }
+  #batterWrap.swinging #bat { transition:transform .09s ease-in; transform:rotate(-45deg); }
   #pitchMsg {
     position:absolute; inset:0; z-index:5;
     display:flex; align-items:center; justify-content:center;
@@ -359,7 +353,6 @@
     </div>
     <div id="field">
       <div id="mound">🐯</div>
-      <div id="hitZone"></div>
       <div id="plate"></div>
       <div id="batterWrap"><span>🐯</span><div id="bat"></div></div>
       <div id="gBall">⚾</div>
@@ -488,6 +481,11 @@ $('soundBtn').onclick = () => {
   $('soundBtn').textContent = soundOn ? '🔊' : '🔇';
   if (soundOn) { ensureAudio(); beep(880, .12, 0); }
 };
+// ゲーム中にBGM切り替えを反映(gとstartBGMは後で定義されるので遅延参照)
+$('soundBtn').addEventListener('click', () => {
+  if (!soundOn) { stopBGM(); }
+  else if (typeof g !== 'undefined' && g) { startBGM(); }
+});
 
 // ===== カードテンプレート(写真+名前+レア度を合成) =====
 function cardHTML(card, small) {
@@ -687,15 +685,52 @@ function updateDot() {
 
 // ===== バッティングミニゲーム =====
 const HIT_JUDGE = [
-  { max: 40,  label:'🎉 ホームラン!!', adv:4 },
-  { max: 85,  label:'💨 スリーベース!', adv:3 },
-  { max: 140, label:'✨ ツーベース!',   adv:2 },
-  { max: 210, label:'⚡ ヒット!',       adv:1 },
+  { max: 20,  label:'🎉 ホームラン!!', adv:4 },
+  { max: 45,  label:'💨 スリーベース!', adv:3 },
+  { max: 90,  label:'✨ ツーベース!',   adv:2 },
+  { max: 150, label:'⚡ ヒット!',       adv:1 },
 ];
 const COVER_START = `
   <p class="big">⚾ バッティングゲーム ⚾</p>
-  <p style="font-size:14px">ボールが わっかに きたら スイング!<br>ジャストで <b style="color:#f7dc00">ホームラン🎉</b><br>よこに にげる <b style="color:#6db4ff">へんかきゅう</b> は ふるな!<br>みおくれば「ボール」で もう1きゅう。<br><b style="color:#f7dc00">1てん = 🪙100コイン</b></p>
+  <p style="font-size:14px">ボールが ホームベースに きた しゅんかんに スイング!<br>ジャストで <b style="color:#f7dc00">ホームラン🎉</b><br>よこに にげる <b style="color:#6db4ff">へんかきゅう</b> は ふるな!<br>みおくれば「ボール」で もう1きゅう。<br><b style="color:#f7dc00">1てん = 🪙100コイン</b></p>
   <button data-action="start">プレイボール!</button>`;
+
+// ===== BGM(私を野球に連れてって / 1908年・著作権切れ) =====
+const BGM_TEMPO = 0.3; // 1拍の秒数
+const BGM_NOTES = [ // [周波数, 拍数] 0は休符
+  [261.63,1],[523.25,1],[440,1],  [392,1],[329.63,1],[392,2],  [293.66,3],[0,1],
+  [261.63,1],[523.25,1],[440,1],  [392,1],[329.63,1],[392,2],  [440,3],[0,1],
+  [440,1],[415.3,1],[440,1],      [493.88,1],[440,1],[493.88,2],[523.25,2],[0,2],
+];
+const bgm = { timer:0, next:0, idx:0 };
+function bgmNote(freq, t, dur) {
+  const o = ac.createOscillator(), g2 = ac.createGain();
+  o.type = 'triangle'; o.frequency.value = freq;
+  g2.gain.setValueAtTime(0.055, t);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.92);
+  o.connect(g2); g2.connect(ac.destination);
+  o.start(t); o.stop(t + dur);
+}
+function bgmTick() {
+  if (!soundOn || !ac) return;
+  while (bgm.next < ac.currentTime + 0.6) {
+    const [f, beats] = BGM_NOTES[bgm.idx % BGM_NOTES.length];
+    if (f) bgmNote(f, bgm.next, beats * BGM_TEMPO);
+    bgm.next += beats * BGM_TEMPO;
+    bgm.idx++;
+  }
+}
+function startBGM() {
+  stopBGM();
+  if (!ac) return;
+  bgm.idx = 0;
+  bgm.next = ac.currentTime + 0.15;
+  bgm.timer = setInterval(bgmTick, 250);
+  bgmTick();
+}
+function stopBGM() {
+  if (bgm.timer) { clearInterval(bgm.timer); bgm.timer = 0; }
+}
 let g = null;
 
 function sndPitch() { beep(700, .12, 0, 'sine', .1); beep(450, .1, .1, 'sine', .08); }
@@ -718,10 +753,12 @@ function startGame() {
   $('gameCover').classList.add('hide');
   $('pitchMsg').textContent = '';
   updateGameHUD();
-  g.timer = setTimeout(nextPitch, 700);
+  startBGM();
+  g.timer = setTimeout(nextPitch, 1400);
 }
 
 function stopGame() {
+  stopBGM();
   if (!g) return;
   cancelAnimationFrame(g.raf);
   clearTimeout(g.timer);
@@ -781,7 +818,7 @@ function ballCall() {
   $('pitchMsg').textContent = '✋ ボール! よく みた!';
   beep(520, .12, 0, 'triangle', .15);
   beep(700, .15, .12, 'triangle', .15);
-  g.timer = setTimeout(nextPitch, 1100);
+  g.timer = setTimeout(nextPitch, 2200);
 }
 
 function swing() {
@@ -826,11 +863,12 @@ function judgeSwing(diff) {
     sndOut();
   }
   updateGameHUD();
-  g.timer = setTimeout(g.outs >= 3 ? endGame : nextPitch, g.outs >= 3 ? 1100 : 1400);
+  g.timer = setTimeout(g.outs >= 3 ? endGame : nextPitch, g.outs >= 3 ? 1100 : 2800);
 }
 
 function endGame() {
   if (!g) return;
+  stopBGM();
   const runs = g.runs;
   const got = runs * 100;
   g = null;
