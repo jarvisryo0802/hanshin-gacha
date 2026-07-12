@@ -23,7 +23,14 @@
       "Bash(~/.local/bin/gh auth *)",
       "Bash(kill 24719 24715)",
       "Bash(printf '.DS_Store\\\\n__pycache__/\\\\n')",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(curl -s \"https://jarvisryo0802.github.io/hanshin-gacha/\")",
+      "Bash(curl -s -o /dev/null -w 'カード画像: %{http_code}\\\\n' \"https://jarvisryo0802.github.io/hanshin-gacha/cards/SR_%E4%BD%90%E8%97%A4%E8%BC%9D%E6%98%8E.svg\")",
+      "Bash(curl -s -o /dev/null -w 'manifest: %{http_code}\\\\n' \"https://jarvisryo0802.github.io/hanshin-gacha/manifest.webmanifest\")",
+      "Bash(curl -s -o /dev/null -w 'sw.js: %{http_code}\\\\n' \"https://jarvisryo0802.github.io/hanshin-gacha/sw.js\")",
+      "Bash(git add *)",
+      "Bash(git commit -m '使い方をGitHub Pages方式に更新 *)",
+      "Bash(git push *)"
     ]
   }
 }
