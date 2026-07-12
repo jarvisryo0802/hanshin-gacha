@@ -1,16 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 500">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 480">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#8a9aa8"/><stop offset="1" stop-color="#5b6a77"/>
     </linearGradient>
   </defs>
-  <rect width="360" height="500" rx="20" fill="url(#bg)"/>
-  <rect x="10" y="10" width="340" height="480" rx="14" fill="none" stroke="#fff" stroke-width="3" opacity="0.7"/>
-  <rect x="0" y="0" width="360" height="56" fill="#111" opacity="0.85"/>
-  <text x="20" y="38" font-size="24" font-weight="bold" fill="#f7dc00" font-family="sans-serif">HANSHIN TIGERS</text>
-  <text x="180" y="235" font-size="150" text-anchor="middle" font-family="sans-serif">⚾</text>
-  <text x="180" y="330" font-size="90" text-anchor="middle" font-weight="bold" fill="#ffffff" opacity="0.9" font-family="sans-serif">51</text>
-  <rect x="0" y="400" width="360" height="100" fill="#111" opacity="0.85"/>
-  <text x="180" y="455" font-size="44" text-anchor="middle" font-weight="bold" fill="#fff" font-family="sans-serif">中野拓夢</text>
-  <text x="180" y="485" font-size="20" text-anchor="middle" fill="#f7dc00" font-family="sans-serif">N</text>
+  <rect width="360" height="480" fill="url(#bg)"/>
+  <text x="180" y="230" font-size="150" text-anchor="middle" font-family="sans-serif">⚾</text>
+  <text x="180" y="380" font-size="110" text-anchor="middle" font-weight="bold" fill="#ffffff" opacity="0.85" font-family="sans-serif">51</text>
 </svg>

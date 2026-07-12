@@ -118,11 +118,39 @@
   }
   @keyframes pop { from{transform:scale(0) rotate(12deg)} to{transform:scale(1) rotate(12deg)} }
   .cardFrame { position:relative; border-radius:14px; }
-  .cardFrame img {
-    display:block;
-    width:min(64vw,250px); max-height:48vh; object-fit:contain;
-    border-radius:14px; background:#222;
+
+  /* ===== カードテンプレート(写真をはめ込んで名前とレア度を合成) ===== */
+  .card {
+    aspect-ratio: 3/4.2;
+    border-radius:12px; overflow:hidden;
+    background:#1a1a1a;
+    border:3px solid var(--rc,#999);
+    display:flex; flex-direction:column;
   }
+  .cardFrame .card { width:min(62vw,240px); }
+  .card .cardTop {
+    background:#111; color:#f7dc00;
+    font-weight:bold; letter-spacing:1.5px;
+    text-align:center; padding:5px 0; font-size:12px;
+    border-bottom:2px solid var(--rc,#999);
+    flex-shrink:0;
+  }
+  .card .cardPhoto { flex:1; overflow:hidden; background:#222; }
+  .card .cardPhoto img { width:100%; height:100%; object-fit:cover; display:block; }
+  .card .cardBottom {
+    background:#111; padding:7px 6px 8px;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    border-top:2px solid var(--rc,#999);
+    flex-shrink:0;
+  }
+  .card .pname { color:#fff; font-weight:bold; font-size:19px; line-height:1.1; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .card .prarity { font-size:11px; font-weight:bold; color:#111; padding:2px 12px; border-radius:999px; }
+  /* ずかん用の小さいカード */
+  .card.small { border-width:2px; border-radius:10px; }
+  .card.small .cardTop { font-size:7px; padding:2px 0; letter-spacing:.5px; border-bottom-width:1px; }
+  .card.small .cardBottom { padding:3px 3px 4px; gap:2px; border-top-width:1px; }
+  .card.small .pname { font-size:12px; }
+  .card.small .prarity { font-size:8px; padding:1px 8px; }
   .glow-N  { box-shadow:0 0 22px rgba(255,255,255,.35); }
   .glow-R  { box-shadow:0 0 30px rgba(60,140,255,.8); }
   .glow-SR { box-shadow:0 0 40px rgba(255,200,0,.95); }
@@ -154,14 +182,14 @@
   .raritySection h2 { font-size:16px; margin:18px 0 10px; display:flex; align-items:center; gap:8px; }
   .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
   .tile {
-    position:relative; aspect-ratio:3/4; border-radius:12px; overflow:hidden;
+    position:relative; aspect-ratio:3/4.2; border-radius:12px;
     background:#1d1d1d; border:2px solid #333;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer;
   }
-  .tile img { width:100%; height:100%; object-fit:cover; }
   .tile .q { font-size:42px; color:#444; font-weight:bold; }
-  .tile.owned { border-color:#f7dc00; }
+  .tile.owned { border:none; background:none; }
+  .tile.owned .card { width:100%; height:100%; }
   .tile .cnt {
     position:absolute; bottom:5px; right:5px;
     background:rgba(0,0,0,.75); color:#f7dc00; font-size:12px; font-weight:bold;
@@ -180,8 +208,7 @@
     display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:20px;
   }
   #cardModal.show { display:flex; }
-  #cardModal img { max-width:86vw; max-height:60vh; border-radius:14px; }
-  #cardModal p { font-size:20px; font-weight:bold; }
+  #modalCard .card { width:min(72vw,280px); }
   #cardModal small { color:#888; }
 
   /* ===== タブバー ===== */
@@ -247,11 +274,7 @@
   <p id="tapHint">タップしてひらこう!</p>
   <div class="cardResult" id="cardResult">
     <span class="rarityChip" id="rarityChip"></span>
-    <div class="cardFrame" id="cardFrame">
-      <img id="cardImg" alt="カード">
-      <span class="newBadge" id="newBadge">NEW!</span>
-    </div>
-    <p id="cardName"></p>
+    <div class="cardFrame" id="cardFrame"></div>
     <div class="resultBtns">
       <button id="againBtn">もういっかい!</button>
       <button id="closeBtn">とじる</button>
@@ -262,9 +285,7 @@
 
 <!-- カード拡大 -->
 <div id="cardModal">
-  <span class="rarityChip" id="modalChip"></span>
-  <img id="modalImg" alt="カード">
-  <p id="modalName"></p>
+  <div id="modalCard"></div>
   <small id="modalCnt"></small>
   <small>タップでとじる</small>
 </div>
@@ -275,10 +296,10 @@
 
 // ===== レアリティ定義 =====
 const RARITY = {
-  UR: { label:'ウルトラレア', weight:2,  color:'linear-gradient(90deg,#ff5ab8,#8a6bff,#4fd2ff)', icon:'🌈' },
-  SR: { label:'スーパーレア', weight:8,  color:'linear-gradient(90deg,#ffd700,#ffb400)',          icon:'⭐' },
-  R:  { label:'レア',         weight:30, color:'linear-gradient(90deg,#6db4ff,#3c8cff)',          icon:'🔵' },
-  N:  { label:'ノーマル',     weight:60, color:'linear-gradient(90deg,#e8e8e8,#bdbdbd)',          icon:'⚪' },
+  UR: { label:'ウルトラレア', weight:2,  color:'linear-gradient(90deg,#ff5ab8,#8a6bff,#4fd2ff)', icon:'🌈', solid:'#c98fff' },
+  SR: { label:'スーパーレア', weight:8,  color:'linear-gradient(90deg,#ffd700,#ffb400)',          icon:'⭐', solid:'#ffc400' },
+  R:  { label:'レア',         weight:30, color:'linear-gradient(90deg,#6db4ff,#3c8cff)',          icon:'🔵', solid:'#3c8cff' },
+  N:  { label:'ノーマル',     weight:60, color:'linear-gradient(90deg,#e8e8e8,#bdbdbd)',          icon:'⚪', solid:'#bdbdbd' },
 };
 const RARITY_ORDER = ['UR','SR','R','N'];
 
@@ -328,6 +349,19 @@ $('soundBtn').onclick = () => {
   $('soundBtn').textContent = soundOn ? '🔊' : '🔇';
   if (soundOn) { ensureAudio(); beep(880, .12, 0); }
 };
+
+// ===== カードテンプレート(写真+名前+レア度を合成) =====
+function cardHTML(card, small) {
+  const r = RARITY[card.rarity];
+  return `<div class="card${small ? ' small' : ''}" style="--rc:${r.solid}">
+    <div class="cardTop">HANSHIN TIGERS</div>
+    <div class="cardPhoto"><img src="${card.file}" alt="${card.name}" loading="lazy"></div>
+    <div class="cardBottom">
+      <span class="pname">${card.name}</span>
+      <span class="prarity" style="background:${r.color}">${r.icon} ${r.label}</span>
+    </div>
+  </div>`;
+}
 
 // ===== 抽選 =====
 function drawCard() {
@@ -382,9 +416,7 @@ function revealCard(card) {
   const r = RARITY[card.rarity];
   $('rarityChip').textContent = r.icon + ' ' + r.label;
   $('rarityChip').style.background = r.color;
-  $('cardImg').src = card.file;
-  $('cardName').textContent = card.name;
-  $('newBadge').style.display = isNew ? 'block' : 'none';
+  $('cardFrame').innerHTML = cardHTML(card) + (isNew ? '<span class="newBadge">NEW!</span>' : '');
   $('cardFrame').className = 'cardFrame glow-' + card.rarity;
   $('cardResult').classList.add('show');
   sndReveal(card.rarity);
@@ -447,7 +479,7 @@ function renderZukan() {
       const own = col[c.file];
       if (own) {
         t.classList.add('owned');
-        t.innerHTML = `<img src="${c.file}" alt="${c.name}" loading="lazy">` +
+        t.innerHTML = cardHTML(c, true) +
           (own.count > 1 ? `<span class="cnt">×${own.count}</span>` : '') +
           (own.new ? `<span class="nw">NEW</span>` : '');
         t.onclick = () => showModal(c);
@@ -461,11 +493,7 @@ function renderZukan() {
   }
 }
 function showModal(c) {
-  const r = RARITY[c.rarity];
-  $('modalChip').textContent = r.icon + ' ' + r.label;
-  $('modalChip').style.background = r.color;
-  $('modalImg').src = c.file;
-  $('modalName').textContent = c.name;
+  $('modalCard').innerHTML = cardHTML(c);
   $('modalCnt').textContent = '×' + (col[c.file] ? col[c.file].count : 0) + 'まい もってるよ';
   $('cardModal').classList.add('show');
 }
