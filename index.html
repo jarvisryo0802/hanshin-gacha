@@ -480,7 +480,6 @@
   <small>タップでとじる</small>
 </div>
 
-<script src="cards.js"></script>
 <script>
 'use strict';
 
@@ -493,7 +492,7 @@ const RARITY = {
 };
 const RARITY_ORDER = ['UR','SR','R','N'];
 
-const cards = (window.CARD_DATA || []);
+let cards = [];
 const $ = id => document.getElementById(id);
 
 // ===== 所持データ =====
@@ -1128,24 +1127,40 @@ $('gameCover').addEventListener('click', (e) => {
   if (btn.dataset.action === 'gacha') showTab('gacha');
 });
 
-updateHome();
-updateDot();
-updateCoins();
-
-// ===== PWA =====
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+// ===== カード一覧の読み込み =====
+// キャッシュの古い一覧を使わないよう、毎回サーバーに最新版を確認しに行く
+// (オフライン時はService Workerがキャッシュ済みのcards.jsを返してくれる)
+async function loadCards() {
+  try {
+    const res = await fetch('cards.js', { cache: 'no-cache' });
+    const txt = await res.text();
+    cards = JSON.parse(txt.slice(txt.indexOf('['), txt.lastIndexOf(']') + 1));
+  } catch (e) {
+    cards = [];
+  }
+  updateHome();
+  updateDot();
+  if ($('zukanScreen').classList.contains('active')) renderZukan();
+  precacheCards();
 }
 
 // 全カード画像を裏でキャッシュしておく(圏外・オフラインでも遊べるように)
-window.addEventListener('load', () => {
+function precacheCards() {
   if (!('caches' in window)) return;
   caches.open('hanshin-gacha-v1').then(c => {
     for (const card of cards) {
       c.match(card.file).then(hit => { if (!hit) c.add(card.file).catch(() => {}); });
     }
   }).catch(() => {});
-});
+}
+
+updateCoins();
+loadCards();
+
+// ===== PWA =====
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>

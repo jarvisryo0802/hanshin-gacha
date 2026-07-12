@@ -30,7 +30,10 @@
       "Bash(curl -s -o /dev/null -w 'sw.js: %{http_code}\\\\n' \"https://jarvisryo0802.github.io/hanshin-gacha/sw.js\")",
       "Bash(git add *)",
       "Bash(git commit -m '使い方をGitHub Pages方式に更新 *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(curl -s \"https://jarvisryo0802.github.io/hanshin-gacha/cards.js\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"https://jarvisryo0802.github.io/hanshin-gacha/cards.js?t=$\\(date +%s\\)\")"
     ]
   }
 }
