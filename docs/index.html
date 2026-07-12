@@ -119,6 +119,21 @@
     border:4px dashed rgba(255,255,255,.75); border-radius:50%;
     z-index:1;
   }
+  #plate {
+    position:absolute; left:50%; top:90%;
+    width:54px; height:26px; margin-left:-27px;
+    background:#eee; opacity:.92; z-index:1;
+    clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%);
+  }
+  #batterWrap { position:absolute; left:50%; top:78%; margin:-22px 0 0 -108px; z-index:4; font-size:40px; }
+  #bat {
+    position:absolute; left:30px; top:8px;
+    width:52px; height:9px; border-radius:5px;
+    background:linear-gradient(#e0b06a, #b57d33);
+    border:1px solid #7a5420;
+    transform-origin:left center; transform:rotate(-58deg);
+  }
+  #batterWrap.swinging #bat { transition:transform .08s ease-in; transform:rotate(38deg); }
   #pitchMsg {
     position:absolute; inset:0; z-index:5;
     display:flex; align-items:center; justify-content:center;
@@ -345,6 +360,8 @@
     <div id="field">
       <div id="mound">🐯</div>
       <div id="hitZone"></div>
+      <div id="plate"></div>
+      <div id="batterWrap"><span>🐯</span><div id="bat"></div></div>
       <div id="gBall">⚾</div>
       <div id="pitchMsg"></div>
       <div id="gameCover">
@@ -670,14 +687,14 @@ function updateDot() {
 
 // ===== バッティングミニゲーム =====
 const HIT_JUDGE = [
-  { max: 75,  label:'🎉 ホームラン!!', adv:4 },
-  { max: 150, label:'💨 スリーベース!', adv:3 },
-  { max: 230, label:'✨ ツーベース!',   adv:2 },
-  { max: 330, label:'⚡ ヒット!',       adv:1 },
+  { max: 40,  label:'🎉 ホームラン!!', adv:4 },
+  { max: 85,  label:'💨 スリーベース!', adv:3 },
+  { max: 140, label:'✨ ツーベース!',   adv:2 },
+  { max: 210, label:'⚡ ヒット!',       adv:1 },
 ];
 const COVER_START = `
   <p class="big">⚾ バッティングゲーム ⚾</p>
-  <p style="font-size:14px">ボールが わっかに きたら スイング!<br>ジャストで <b style="color:#f7dc00">ホームラン🎉</b><br>3アウトまでに とくてんを とろう!<br><b style="color:#f7dc00">1てん = 🪙100コイン</b></p>
+  <p style="font-size:14px">ボールが わっかに きたら スイング!<br>ジャストで <b style="color:#f7dc00">ホームラン🎉</b><br>よこに にげる <b style="color:#6db4ff">へんかきゅう</b> は ふるな!<br>みおくれば「ボール」で もう1きゅう。<br><b style="color:#f7dc00">1てん = 🪙100コイン</b></p>
   <button data-action="start">プレイボール!</button>`;
 let g = null;
 
@@ -721,7 +738,11 @@ function nextPitch() {
   if (!g) return;
   g.pitching = true;
   g.swung = false;
-  g.dur = 900 + Math.random() * 500;  // 球速をランダムに
+  // 緩急: 30%で速球、それ以外は普通〜遅め
+  const fast = Math.random() < 0.3;
+  g.dur = fast ? 430 + Math.random() * 180 : 700 + Math.random() * 450;
+  // 25%で変化球(外か内に逃げる)
+  g.curve = Math.random() < 0.25 ? (Math.random() < 0.5 ? -1 : 1) : 0;
   $('pitchMsg').textContent = '';
   $('mound').classList.add('throwing');
   setTimeout(() => $('mound').classList.remove('throwing'), 300);
@@ -732,18 +753,42 @@ function nextPitch() {
   const step = (now) => {
     if (!g || !g.pitching) return;
     const p = (now - g.t0) / g.dur;
-    if (p >= 1.35 && !g.swung) { judgeSwing(null); return; } // 見逃し
+    if (p >= 1.35 && !g.swung) {
+      g.curve ? ballCall() : judgeSwing(null); // 変化球はボール、ストレートは見逃しアウト
+      return;
+    }
     const pc = Math.min(p, 1.12);
+    // 変化球は後半で横に逃げる
+    let dx = 0, spin = '';
+    if (g.curve) {
+      const c = Math.max(0, pc - 0.5);
+      dx = g.curve * c * c * 320;
+      spin = ` rotate(${pc * 720}deg)`;
+    }
+    ball.style.left = `calc(50% + ${dx}px)`;
     ball.style.top = (14 + pc * 64) + '%';
-    ball.style.transform = `translate(-50%,-50%) scale(${0.4 + pc * 0.95})`;
+    ball.style.transform = `translate(-50%,-50%) scale(${0.4 + pc * 0.95})${spin}`;
     g.raf = requestAnimationFrame(step);
   };
   g.raf = requestAnimationFrame(step);
 }
 
+function ballCall() {
+  if (!g) return;
+  g.pitching = false;
+  cancelAnimationFrame(g.raf);
+  $('gBall').style.display = 'none';
+  $('pitchMsg').textContent = '✋ ボール! よく みた!';
+  beep(520, .12, 0, 'triangle', .15);
+  beep(700, .15, .12, 'triangle', .15);
+  g.timer = setTimeout(nextPitch, 1100);
+}
+
 function swing() {
   if (!g || !g.pitching || g.swung) return;
   g.swung = true;
+  $('batterWrap').classList.add('swinging');
+  setTimeout(() => $('batterWrap').classList.remove('swinging'), 260);
   judgeSwing(performance.now() - (g.t0 + g.dur));
 }
 
@@ -765,7 +810,8 @@ function judgeSwing(diff) {
   cancelAnimationFrame(g.raf);
   $('gBall').style.display = 'none';
   let res = null;
-  if (diff !== null) {
+  // 変化球を振ったら必ずアウト
+  if (diff !== null && !g.curve) {
     const ad = Math.abs(diff);
     res = HIT_JUDGE.find(h => ad <= h.max) || null;
   }
@@ -775,7 +821,8 @@ function judgeSwing(diff) {
     if (res.adv === 4) { sndReveal('UR'); confetti(60); } else { sndHit(); }
   } else {
     g.outs++;
-    $('pitchMsg').textContent = diff === null ? 'みのがし…' : 'アウト…';
+    $('pitchMsg').textContent = diff === null ? 'みのがし…'
+      : (g.curve ? '💦 ボールだまを ふった!' : 'アウト…');
     sndOut();
   }
   updateGameHUD();
