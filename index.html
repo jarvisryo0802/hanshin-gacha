@@ -505,7 +505,7 @@ const save = () => localStorage.setItem(STORE_KEY, JSON.stringify(col));
 // ===== コイン =====
 const COIN_KEY = 'hanshin-gacha-coins';
 const GACHA_COST = 100;
-const START_COINS = 1000;
+const START_COINS = 300;
 let coins = parseInt(localStorage.getItem(COIN_KEY) ?? String(START_COINS), 10);
 if (isNaN(coins) || coins < 0) coins = START_COINS;
 const saveCoins = () => localStorage.setItem(COIN_KEY, String(coins));
@@ -782,13 +782,13 @@ const HIT_JUDGE = [
   { max: 50, label:'✨ ツーベース!',   adv:2 },
   { max: 80, label:'⚡ ヒット!',       adv:1 },
 ];
-const COIN_PER_RUN = 10;   // 1点あたりのコイン
+const COIN_PER_RUN = 100;  // 1点あたりのコイン
 const PITCH_GAP = 5000;    // 結果表示から次の投球までの間隔
 const BALL_GAP = 4000;     // ボール判定後の間隔
 const FIRST_PITCH = 2500;  // プレイボールから初球まで
 const COVER_START = `
   <p class="big">⚾ バッティングゲーム ⚾</p>
-  <p style="font-size:14px">ボールが ホームベースに きた しゅんかんに スイング!<br>ジャストで <b style="color:#f7dc00">ホームラン🎉</b><br>よこに にげる <b style="color:#6db4ff">へんかきゅう</b> は ふるな!<br>みおくれば「ボール」で もう1きゅう。<br><b style="color:#f7dc00">1てん = 🪙10コイン</b></p>
+  <p style="font-size:14px">ボールが ホームベースに きた しゅんかんに スイング!<br>ジャストで <b style="color:#f7dc00">ホームラン🎉</b><br>よこに にげる <b style="color:#6db4ff">へんかきゅう</b> は ふるな!<br>みおくれば「ボール」で もう1きゅう。<br><b style="color:#f7dc00">1てん = 🪙100コイン</b></p>
   <button data-action="start">プレイボール!</button>`;
 
 // ===== BGM(私を野球に連れてって / 1908年・著作権切れ) =====
@@ -1031,6 +1031,11 @@ function hitBallAnim(type, cb) {
       void $('stands').offsetWidth;
       $('stands').classList.add('hrflash');
     }
+    // プレー後は野手をすぐ定位置へ戻す
+    setTimeout(() => {
+      $('fielderL').style.left = FIELDER_HOME.L + '%';
+      $('fielderR').style.left = FIELDER_HOME.R + '%';
+    }, 750);
     if (g) cb();
   }, dur);
 }
