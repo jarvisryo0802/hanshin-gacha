@@ -8,6 +8,7 @@ import json
 import os
 import re
 import socket
+import unicodedata
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = 8425
@@ -20,6 +21,9 @@ def build_cards_js():
     cards = []
     if os.path.isdir(CARDS_DIR):
         for f in sorted(os.listdir(CARDS_DIR)):
+            # Macは濁点を分解形式(NFD)で保存するが、GitHubはNFCに変換するため
+            # URLを合成形式(NFC)に統一する(APFSはどちらの形式でもファイルを見つけられる)
+            f = unicodedata.normalize('NFC', f)
             base, ext = os.path.splitext(f)
             if f.startswith('.') or ext.lower() not in EXTS:
                 continue
