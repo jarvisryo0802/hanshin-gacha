@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>はんしんカードガチャ</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="はんしんガチャ">
+<meta name="theme-color" content="#111111">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; overscroll-behavior:none; }
+  body {
+    font-family: -apple-system, "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
+    background:#111;
+    color:#fff;
+    user-select:none; -webkit-user-select:none;
+    touch-action:manipulation;
+    display:flex; flex-direction:column;
+    height:100dvh;
+    overflow:hidden;
+  }
+
+  /* ===== ヘッダー ===== */
+  header {
+    padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+    background: repeating-linear-gradient(-45deg, #1a1a1a 0 22px, #222 22px 44px);
+    border-bottom: 4px solid #f7dc00;
+    display:flex; align-items:center; justify-content:space-between;
+    flex-shrink:0;
+  }
+  header h1 { font-size:20px; color:#f7dc00; letter-spacing:1px; }
+  header h1 span { color:#fff; font-size:14px; }
+  #soundBtn { font-size:22px; background:none; border:none; padding:4px 8px; cursor:pointer; }
+
+  /* ===== メイン ===== */
+  main { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; position:relative; }
+  .screen { display:none; min-height:100%; }
+  .screen.active { display:block; }
+
+  /* ===== ガチャ画面 ===== */
+  #gachaScreen { display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px 16px; gap:20px; }
+  #gachaScreen.active { display:flex; }
+  .machine {
+    width:min(62vw, 250px); aspect-ratio:1;
+    background: radial-gradient(circle at 30% 25%, #333 0%, #191919 70%);
+    border:6px solid #f7dc00; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:min(30vw,120px);
+    box-shadow: 0 0 40px rgba(247,220,0,.25), inset 0 0 30px rgba(0,0,0,.6);
+    animation: floaty 3s ease-in-out infinite;
+  }
+  @keyframes floaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  #pullBtn {
+    font-family:inherit;
+    font-size:24px; font-weight:bold; color:#111;
+    background: linear-gradient(#ffe95c, #f7dc00 45%, #d9b800);
+    border:none; border-radius:999px;
+    padding:18px 44px;
+    box-shadow: 0 6px 0 #8a7400, 0 10px 24px rgba(0,0,0,.5);
+    cursor:pointer;
+  }
+  #pullBtn:active { transform:translateY(4px); box-shadow:0 2px 0 #8a7400; }
+  #collectionCount { color:#aaa; font-size:14px; }
+  #collectionCount b { color:#f7dc00; font-size:18px; }
+
+  /* ===== ガチャ演出オーバーレイ ===== */
+  #overlay {
+    position:fixed; inset:0; z-index:50;
+    background:rgba(0,0,0,.93);
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    gap:22px; padding:20px; text-align:center;
+  }
+  #overlay.show { display:flex; }
+
+  .pack {
+    width:min(58vw,230px); aspect-ratio:3/4.2;
+    border-radius:16px;
+    background: repeating-linear-gradient(-45deg, #f7dc00 0 16px, #111 16px 32px);
+    border:5px solid #fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:60px;
+    box-shadow:0 0 50px rgba(247,220,0,.45);
+    cursor:pointer;
+    animation: packIn .5s ease-out, wobble 1s ease-in-out .5s infinite;
+  }
+  @keyframes packIn { from{transform:translateY(-80vh) rotate(-15deg)} to{transform:translateY(0) rotate(0)} }
+  @keyframes wobble { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-4deg) scale(1.02)} 75%{transform:rotate(4deg) scale(1.02)} }
+  .pack.opening { animation: burst .45s ease-in forwards; }
+  @keyframes burst { 0%{transform:scale(1)} 60%{transform:scale(1.25) rotate(6deg)} 100%{transform:scale(0); opacity:0} }
+  #tapHint { font-size:18px; color:#f7dc00; font-weight:bold; animation: blink 1s infinite; }
+  @keyframes blink { 50%{opacity:.3} }
+
+  #flash {
+    position:fixed; inset:0; background:#fff; z-index:60;
+    opacity:0; pointer-events:none;
+  }
+  #flash.go { animation: flashAnim .5s ease-out; }
+  @keyframes flashAnim { 0%{opacity:0} 20%{opacity:1} 100%{opacity:0} }
+
+  /* ===== カード表示 ===== */
+  .cardResult { display:none; flex-direction:column; align-items:center; gap:14px; }
+  .cardResult.show { display:flex; animation: cardIn .6s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes cardIn { from{transform:scale(.2) rotate(-8deg); opacity:0} to{transform:scale(1) rotate(0); opacity:1} }
+  .rarityChip {
+    font-weight:bold; font-size:16px; padding:6px 22px; border-radius:999px; color:#111;
+  }
+  .newBadge {
+    position:absolute; top:-14px; right:-14px;
+    background:#e60012; color:#fff; font-weight:bold; font-size:14px;
+    padding:8px 12px; border-radius:999px; transform:rotate(12deg);
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+    animation: pop .4s cubic-bezier(.2,2,.4,1) .3s both;
+  }
+  @keyframes pop { from{transform:scale(0) rotate(12deg)} to{transform:scale(1) rotate(12deg)} }
+  .cardFrame { position:relative; border-radius:14px; }
+  .cardFrame img {
+    display:block;
+    width:min(64vw,250px); max-height:48vh; object-fit:contain;
+    border-radius:14px; background:#222;
+  }
+  .glow-N  { box-shadow:0 0 22px rgba(255,255,255,.35); }
+  .glow-R  { box-shadow:0 0 30px rgba(60,140,255,.8); }
+  .glow-SR { box-shadow:0 0 40px rgba(255,200,0,.95); }
+  .glow-UR { box-shadow:0 0 46px rgba(255,80,180,.9), 0 0 90px rgba(120,80,255,.7); animation:hueSpin 2s linear infinite; }
+  @keyframes hueSpin { to{filter:hue-rotate(360deg)} }
+  #cardName { font-size:22px; font-weight:bold; }
+  .resultBtns { display:flex; gap:14px; }
+  .resultBtns button {
+    font-family:inherit; font-size:18px; font-weight:bold;
+    padding:14px 26px; border-radius:999px; border:none; cursor:pointer;
+  }
+  #againBtn { background:linear-gradient(#ffe95c,#f7dc00 45%,#d9b800); color:#111; box-shadow:0 4px 0 #8a7400; }
+  #closeBtn { background:#333; color:#fff; box-shadow:0 4px 0 #000; }
+
+  /* ===== 紙吹雪 ===== */
+  .confetti {
+    position:fixed; top:-20px; z-index:55; pointer-events:none;
+    width:10px; height:16px; border-radius:2px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall { to{ transform:translateY(110vh) rotate(720deg); } }
+
+  /* ===== ずかん画面 ===== */
+  #zukanScreen { padding:16px 14px calc(env(safe-area-inset-bottom) + 90px); }
+  .progressWrap { margin-bottom:14px; }
+  .progressLabel { display:flex; justify-content:space-between; font-size:14px; color:#ccc; margin-bottom:6px; }
+  .progressBar { height:14px; background:#2a2a2a; border-radius:999px; overflow:hidden; }
+  .progressBar div { height:100%; background:linear-gradient(90deg,#f7dc00,#ffb400); border-radius:999px; transition:width .5s; }
+  .raritySection h2 { font-size:16px; margin:18px 0 10px; display:flex; align-items:center; gap:8px; }
+  .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+  .tile {
+    position:relative; aspect-ratio:3/4; border-radius:12px; overflow:hidden;
+    background:#1d1d1d; border:2px solid #333;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .tile img { width:100%; height:100%; object-fit:cover; }
+  .tile .q { font-size:42px; color:#444; font-weight:bold; }
+  .tile.owned { border-color:#f7dc00; }
+  .tile .cnt {
+    position:absolute; bottom:5px; right:5px;
+    background:rgba(0,0,0,.75); color:#f7dc00; font-size:12px; font-weight:bold;
+    padding:2px 8px; border-radius:999px;
+  }
+  .tile .nw {
+    position:absolute; top:5px; left:5px;
+    background:#e60012; color:#fff; font-size:10px; font-weight:bold;
+    padding:2px 6px; border-radius:999px;
+  }
+  #resetLink { display:block; text-align:center; color:#555; font-size:12px; margin-top:30px; background:none; border:none; text-decoration:underline; width:100%; cursor:pointer; font-family:inherit; }
+
+  /* ===== カード拡大モーダル ===== */
+  #cardModal {
+    position:fixed; inset:0; z-index:70; background:rgba(0,0,0,.94);
+    display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:20px;
+  }
+  #cardModal.show { display:flex; }
+  #cardModal img { max-width:86vw; max-height:60vh; border-radius:14px; }
+  #cardModal p { font-size:20px; font-weight:bold; }
+  #cardModal small { color:#888; }
+
+  /* ===== タブバー ===== */
+  nav {
+    position:fixed; bottom:0; left:0; right:0; z-index:40;
+    display:flex;
+    background:#1a1a1a; border-top:3px solid #f7dc00;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav button {
+    position:relative;
+    flex:1; background:none; border:none; color:#888;
+    font-family:inherit; font-size:13px; font-weight:bold;
+    padding:10px 0 8px; cursor:pointer;
+  }
+  nav button .ic { display:block; font-size:24px; margin-bottom:2px; }
+  nav button.active { color:#f7dc00; }
+  nav .dot {
+    position:absolute; top:6px; right:calc(50% - 26px);
+    width:10px; height:10px; border-radius:50%; background:#e60012; display:none;
+  }
+  nav .dot.show { display:block; }
+
+  #emptyMsg { text-align:center; color:#aaa; line-height:1.9; padding:40px 20px; font-size:15px; }
+  #emptyMsg code { color:#f7dc00; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚾ はんしんカードガチャ</h1>
+  <button id="soundBtn" aria-label="おと">🔊</button>
+</header>
+
+<main>
+  <!-- ガチャ画面 -->
+  <section id="gachaScreen" class="screen active">
+    <div class="machine">🐯</div>
+    <button id="pullBtn">ガチャをまわす!</button>
+    <p id="collectionCount"></p>
+  </section>
+
+  <!-- ずかん画面 -->
+  <section id="zukanScreen" class="screen">
+    <div class="progressWrap">
+      <div class="progressLabel"><span>あつめたカード</span><span id="progText"></span></div>
+      <div class="progressBar"><div id="progFill"></div></div>
+    </div>
+    <div id="zukanList"></div>
+    <button id="resetLink">データをリセットする</button>
+  </section>
+</main>
+
+<!-- タブバー -->
+<nav>
+  <button id="tabGacha" class="active"><span class="ic">🎰</span>ガチャ</button>
+  <button id="tabZukan"><span class="ic">📖</span>ずかん<span class="dot" id="newDot"></span></button>
+</nav>
+
+<!-- ガチャ演出 -->
+<div id="overlay">
+  <div class="pack" id="pack">⚾</div>
+  <p id="tapHint">タップしてひらこう!</p>
+  <div class="cardResult" id="cardResult">
+    <span class="rarityChip" id="rarityChip"></span>
+    <div class="cardFrame" id="cardFrame">
+      <img id="cardImg" alt="カード">
+      <span class="newBadge" id="newBadge">NEW!</span>
+    </div>
+    <p id="cardName"></p>
+    <div class="resultBtns">
+      <button id="againBtn">もういっかい!</button>
+      <button id="closeBtn">とじる</button>
+    </div>
+  </div>
+</div>
+<div id="flash"></div>
+
+<!-- カード拡大 -->
+<div id="cardModal">
+  <span class="rarityChip" id="modalChip"></span>
+  <img id="modalImg" alt="カード">
+  <p id="modalName"></p>
+  <small id="modalCnt"></small>
+  <small>タップでとじる</small>
+</div>
+
+<script src="cards.js"></script>
+<script>
+'use strict';
+
+// ===== レアリティ定義 =====
+const RARITY = {
+  UR: { label:'ウルトラレア', weight:2,  color:'linear-gradient(90deg,#ff5ab8,#8a6bff,#4fd2ff)', icon:'🌈' },
+  SR: { label:'スーパーレア', weight:8,  color:'linear-gradient(90deg,#ffd700,#ffb400)',          icon:'⭐' },
+  R:  { label:'レア',         weight:30, color:'linear-gradient(90deg,#6db4ff,#3c8cff)',          icon:'🔵' },
+  N:  { label:'ノーマル',     weight:60, color:'linear-gradient(90deg,#e8e8e8,#bdbdbd)',          icon:'⚪' },
+};
+const RARITY_ORDER = ['UR','SR','R','N'];
+
+const cards = (window.CARD_DATA || []);
+const $ = id => document.getElementById(id);
+
+// ===== 所持データ =====
+const STORE_KEY = 'hanshin-gacha-v1';
+let col = {};
+try { col = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch(e) { col = {}; }
+const save = () => localStorage.setItem(STORE_KEY, JSON.stringify(col));
+
+// ===== サウンド =====
+let soundOn = localStorage.getItem('hanshin-gacha-sound') !== 'off';
+let ac = null;
+function ensureAudio() {
+  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === 'suspended') ac.resume();
+}
+function beep(freq, dur, delay, type, vol) {
+  if (!soundOn || !ac) return;
+  type = type || 'triangle'; vol = vol || 0.18;
+  const t = ac.currentTime + delay;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t); o.stop(t + dur);
+}
+function sndRoll() { for (let i = 0; i < 6; i++) beep(300 + i * 90, .08, i * .1, 'square', .08); }
+function sndOpen() { beep(200, .15, 0, 'sawtooth', .15); beep(900, .3, .05, 'triangle', .2); }
+function sndReveal(r) {
+  const seq = {
+    N:  [[660,0],[880,.12]],
+    R:  [[523,0],[659,.1],[784,.2]],
+    SR: [[523,0],[659,.1],[784,.2],[1047,.3],[1319,.45]],
+    UR: [[523,0],[659,.08],[784,.16],[1047,.24],[784,.36],[1047,.44],[1319,.52],[1568,.66]],
+  }[r];
+  seq.forEach(([f, d]) => beep(f, .25, d, 'triangle', .22));
+  if (r === 'SR' || r === 'UR') beep(130, .5, 0, 'sawtooth', .12);
+}
+$('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+$('soundBtn').onclick = () => {
+  soundOn = !soundOn;
+  localStorage.setItem('hanshin-gacha-sound', soundOn ? 'on' : 'off');
+  $('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+  if (soundOn) { ensureAudio(); beep(880, .12, 0); }
+};
+
+// ===== 抽選 =====
+function drawCard() {
+  const present = RARITY_ORDER.filter(r => cards.some(c => c.rarity === r));
+  const total = present.reduce((s, r) => s + RARITY[r].weight, 0);
+  let roll = Math.random() * total, rarity = present[present.length - 1];
+  for (const r of present) { roll -= RARITY[r].weight; if (roll <= 0) { rarity = r; break; } }
+  const pool = cards.filter(c => c.rarity === rarity);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ===== ガチャ演出 =====
+let busy = false, current = null;
+function startGacha() {
+  if (busy) return;
+  if (!cards.length) {
+    alert('カードがまだないよ!\n「cards」フォルダに せんしゅの画像を入れてね。');
+    return;
+  }
+  busy = true;
+  ensureAudio();
+  current = drawCard();
+  // 先に画像を読み込んでおく
+  const pre = new Image(); pre.src = current.file;
+  $('cardResult').classList.remove('show');
+  $('pack').style.display = 'flex';
+  $('pack').classList.remove('opening');
+  $('tapHint').style.display = 'block';
+  $('overlay').classList.add('show');
+  sndRoll();
+}
+function openPack() {
+  if (!current || $('pack').classList.contains('opening')) return;
+  $('pack').classList.add('opening');
+  $('tapHint').style.display = 'none';
+  sndOpen();
+  setTimeout(() => {
+    $('flash').classList.remove('go');
+    void $('flash').offsetWidth;
+    $('flash').classList.add('go');
+    $('pack').style.display = 'none';
+    revealCard(current);
+  }, 400);
+}
+function revealCard(card) {
+  const isNew = !col[card.file];
+  col[card.file] = col[card.file] || { count: 0, new: false };
+  col[card.file].count++;
+  if (isNew) col[card.file].new = true;
+  save();
+
+  const r = RARITY[card.rarity];
+  $('rarityChip').textContent = r.icon + ' ' + r.label;
+  $('rarityChip').style.background = r.color;
+  $('cardImg').src = card.file;
+  $('cardName').textContent = card.name;
+  $('newBadge').style.display = isNew ? 'block' : 'none';
+  $('cardFrame').className = 'cardFrame glow-' + card.rarity;
+  $('cardResult').classList.add('show');
+  sndReveal(card.rarity);
+  if (card.rarity === 'SR' || card.rarity === 'UR') confetti(card.rarity === 'UR' ? 80 : 40);
+  updateHome();
+  updateDot();
+  busy = false;
+}
+function closeOverlay() {
+  $('overlay').classList.remove('show');
+  busy = false;
+}
+$('pullBtn').onclick = startGacha;
+$('pack').onclick = openPack;
+$('againBtn').onclick = () => { closeOverlay(); setTimeout(startGacha, 100); };
+$('closeBtn').onclick = closeOverlay;
+
+// ===== 紙吹雪 =====
+function confetti(n) {
+  const colors = ['#f7dc00', '#ffffff', '#e60012', '#3c8cff', '#ff5ab8'];
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div');
+    d.className = 'confetti';
+    d.style.left = Math.random() * 100 + 'vw';
+    d.style.background = colors[Math.floor(Math.random() * colors.length)];
+    d.style.animationDuration = (1.6 + Math.random() * 1.6) + 's';
+    d.style.animationDelay = Math.random() * .4 + 's';
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 4000);
+  }
+}
+
+// ===== ずかん =====
+function renderZukan() {
+  const list = $('zukanList');
+  list.innerHTML = '';
+  if (!cards.length) {
+    list.innerHTML = '<p id="emptyMsg">カードがまだないよ!<br>Macの <code>cards</code> フォルダに<br>せんしゅの画像を入れてね。<br><br>れい: <code>SR_佐藤輝明.png</code></p>';
+    $('progText').textContent = '0 / 0';
+    $('progFill').style.width = '0%';
+    return;
+  }
+  const owned = cards.filter(c => col[c.file]).length;
+  $('progText').textContent = owned + ' / ' + cards.length;
+  $('progFill').style.width = (owned / cards.length * 100) + '%';
+
+  for (const r of RARITY_ORDER) {
+    const pool = cards.filter(c => c.rarity === r);
+    if (!pool.length) continue;
+    const sec = document.createElement('div');
+    sec.className = 'raritySection';
+    const h = document.createElement('h2');
+    h.innerHTML = `<span class="rarityChip" style="background:${RARITY[r].color};font-size:13px;padding:4px 14px">${RARITY[r].icon} ${RARITY[r].label}</span> <span style="color:#888;font-size:13px">${pool.filter(c=>col[c.file]).length}/${pool.length}</span>`;
+    sec.appendChild(h);
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    for (const c of pool) {
+      const t = document.createElement('div');
+      t.className = 'tile';
+      const own = col[c.file];
+      if (own) {
+        t.classList.add('owned');
+        t.innerHTML = `<img src="${c.file}" alt="${c.name}" loading="lazy">` +
+          (own.count > 1 ? `<span class="cnt">×${own.count}</span>` : '') +
+          (own.new ? `<span class="nw">NEW</span>` : '');
+        t.onclick = () => showModal(c);
+      } else {
+        t.innerHTML = '<span class="q">?</span>';
+      }
+      grid.appendChild(t);
+    }
+    sec.appendChild(grid);
+    list.appendChild(sec);
+  }
+}
+function showModal(c) {
+  const r = RARITY[c.rarity];
+  $('modalChip').textContent = r.icon + ' ' + r.label;
+  $('modalChip').style.background = r.color;
+  $('modalImg').src = c.file;
+  $('modalName').textContent = c.name;
+  $('modalCnt').textContent = '×' + (col[c.file] ? col[c.file].count : 0) + 'まい もってるよ';
+  $('cardModal').classList.add('show');
+}
+$('cardModal').onclick = () => $('cardModal').classList.remove('show');
+
+$('resetLink').onclick = () => {
+  if (!confirm('あつめたカードのデータを ぜんぶ けしますか?')) return;
+  if (!confirm('ほんとうに けしても いい?(もとに もどせません)')) return;
+  col = {}; save();
+  renderZukan(); updateHome(); updateDot();
+};
+
+// ===== タブ切り替え =====
+function showTab(name) {
+  $('gachaScreen').classList.toggle('active', name === 'gacha');
+  $('zukanScreen').classList.toggle('active', name === 'zukan');
+  $('tabGacha').classList.toggle('active', name === 'gacha');
+  $('tabZukan').classList.toggle('active', name === 'zukan');
+  if (name === 'zukan') {
+    renderZukan();
+    // NEWマークは見たら消す
+    setTimeout(() => {
+      let changed = false;
+      for (const k in col) if (col[k].new) { col[k].new = false; changed = true; }
+      if (changed) { save(); updateDot(); }
+    }, 1500);
+  }
+}
+$('tabGacha').onclick = () => showTab('gacha');
+$('tabZukan').onclick = () => showTab('zukan');
+
+function updateHome() {
+  const owned = cards.filter(c => col[c.file]).length;
+  $('collectionCount').innerHTML = `あつめたカード <b>${owned}</b> / ${cards.length} しゅるい`;
+}
+function updateDot() {
+  const anyNew = Object.values(col).some(v => v.new);
+  $('newDot').classList.toggle('show', anyNew);
+}
+
+updateHome();
+updateDot();
+
+// ===== PWA =====
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// 全カード画像を裏でキャッシュしておく(圏外・オフラインでも遊べるように)
+window.addEventListener('load', () => {
+  if (!('caches' in window)) return;
+  caches.open('hanshin-gacha-v1').then(c => {
+    for (const card of cards) {
+      c.match(card.file).then(hit => { if (!hit) c.add(card.file).catch(() => {}); });
+    }
+  }).catch(() => {});
+});
+</script>
+</body>
+</html>

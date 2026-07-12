@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 \"/private/tmp/claude-501/-Users-wadaryo-Desktop--------------ClaudeCode------/aecc0dfe-38e0-4f63-9cd8-405b8edc6a2c/scratchpad/make_icons.py\" \"/Users/wadaryo/Desktop/ジャーヴィスプロジェクト/ClaudeCode/阪神ガチャ\")",
+      "Bash(chmod +x \"/Users/wadaryo/Desktop/ジャーヴィスプロジェクト/ClaudeCode/阪神ガチャ/サーバー起動.command\")",
+      "Bash(python3)",
+      "Bash(curl -s http://localhost:8425/cards.js)",
+      "Bash(python3 -c \"import sys; print\\(sys.stdin.read\\(\\)[:400]\\)\")",
+      "Bash(echo \"---after-delete grep exit:$?\")",
+      "Bash(chmod +x \"公開用フォルダを作る.command\")",
+      "Bash(zsh \"公開用フォルダを作る.command\")",
+      "Bash(gh auth *)",
+      "Bash(git config *)",
+      "Bash(brew --version)",
+      "Bash(git --version)",
+      "Bash(curl -s https://api.github.com/repos/cli/cli/releases/latest)",
+      "Bash(python3 -c \"import json,sys; print\\(json.load\\(sys.stdin\\)['tag_name']\\)\")",
+      "Bash(mkdir -p ~/.local/bin)",
+      "Bash(curl -sL -o gh.zip \"https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_macOS_arm64.zip\")",
+      "Bash(unzip -oq gh.zip)",
+      "Bash(cp gh_2.96.0_macOS_arm64/bin/gh ~/.local/bin/gh)",
+      "Bash(chmod +x ~/.local/bin/gh)",
+      "Bash(~/.local/bin/gh auth *)",
+      "Bash(kill 24719 24715)",
+      "Bash(printf '.DS_Store\\\\n__pycache__/\\\\n')",
+      "Bash(python3 -)"
+    ]
+  }
+}
