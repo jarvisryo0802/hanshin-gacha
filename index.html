@@ -33,9 +33,17 @@
     display:flex; align-items:center; justify-content:space-between;
     flex-shrink:0;
   }
-  header h1 { font-size:20px; color:#f7dc00; letter-spacing:1px; }
+  header h1 { font-size:15px; color:#f7dc00; letter-spacing:0; white-space:nowrap; }
   header h1 span { color:#fff; font-size:14px; }
   #soundBtn { font-size:22px; background:none; border:none; padding:4px 8px; cursor:pointer; }
+  .headRight { display:flex; align-items:center; gap:6px; }
+  #coinBox {
+    background:#000; border:2px solid #f7dc00; border-radius:999px;
+    padding:3px 10px; font-weight:bold; font-size:13px; color:#f7dc00;
+    white-space:nowrap;
+  }
+  #coinBox.flash { animation: coinFlash .6s; }
+  @keyframes coinFlash { 30%{transform:scale(1.25); background:#f7dc00; color:#111} }
 
   /* ===== メイン ===== */
   main { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; position:relative; }
@@ -65,8 +73,81 @@
     cursor:pointer;
   }
   #pullBtn:active { transform:translateY(4px); box-shadow:0 2px 0 #8a7400; }
+  #pullBtn small { display:block; font-size:13px; font-weight:normal; margin-top:2px; }
   #collectionCount { color:#aaa; font-size:14px; }
   #collectionCount b { color:#f7dc00; font-size:18px; }
+
+  /* ===== ミニゲーム(バッティング) ===== */
+  #gameScreen { padding:10px 12px calc(env(safe-area-inset-bottom) + 84px); display:none; flex-direction:column; gap:10px; }
+  #gameScreen.active { display:flex; }
+  .scoreRow {
+    display:flex; align-items:center; justify-content:space-between;
+    background:#1c1c1c; border:2px solid #333; border-radius:12px;
+    padding:8px 14px; font-size:14px; color:#ccc;
+  }
+  .scoreRow b { color:#f7dc00; font-size:20px; }
+  .diamond { position:relative; width:52px; height:36px; }
+  .diamond .bs {
+    position:absolute; width:15px; height:15px; background:#3a3a3a;
+    transform:rotate(45deg); border-radius:3px;
+  }
+  .diamond .bs.on { background:#f7dc00; box-shadow:0 0 8px #f7dc00; }
+  #bs2 { top:0; left:50%; margin-left:-7px; }
+  #bs1 { bottom:0; right:2px; }
+  #bs3 { bottom:0; left:2px; }
+  #gOuts { letter-spacing:3px; color:#e60012; font-size:16px; }
+  #field {
+    position:relative; height:46dvh; min-height:300px;
+    border-radius:16px; overflow:hidden;
+    background: linear-gradient(#2e6b34 0%, #2e6b34 62%, #8a6b43 62%, #7a5c38 100%);
+    border:3px solid #333;
+  }
+  #mound {
+    position:absolute; top:11%; left:50%; transform:translateX(-50%);
+    font-size:44px; z-index:2; transition: transform .15s;
+  }
+  #mound.throwing { transform:translateX(-50%) rotate(-20deg) scale(1.15); }
+  #gBall {
+    position:absolute; left:50%; top:14%;
+    font-size:26px; z-index:3;
+    transform:translate(-50%,-50%) scale(.4);
+    display:none;
+  }
+  #hitZone {
+    position:absolute; left:50%; top:78%;
+    width:76px; height:76px; margin:-38px 0 0 -38px;
+    border:4px dashed rgba(255,255,255,.75); border-radius:50%;
+    z-index:1;
+  }
+  #pitchMsg {
+    position:absolute; inset:0; z-index:5;
+    display:flex; align-items:center; justify-content:center;
+    font-size:34px; font-weight:bold; text-align:center;
+    text-shadow:0 3px 10px rgba(0,0,0,.8);
+    pointer-events:none;
+  }
+  #gameCover {
+    position:absolute; inset:0; z-index:8;
+    background:rgba(0,0,0,.72);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; text-align:center; padding:18px; line-height:1.7;
+  }
+  #gameCover.hide { display:none; }
+  #gameCover .big { font-size:20px; font-weight:bold; color:#f7dc00; }
+  #gameCover button {
+    font-family:inherit; font-size:20px; font-weight:bold; color:#111;
+    background:linear-gradient(#ffe95c,#f7dc00 45%,#d9b800);
+    border:none; border-radius:999px; padding:14px 38px;
+    box-shadow:0 5px 0 #8a7400; cursor:pointer;
+  }
+  #swingBtn {
+    font-family:inherit; font-size:26px; font-weight:bold; color:#fff;
+    background:linear-gradient(#ff7a3c,#e64a00 50%,#b83a00);
+    border:none; border-radius:999px; padding:18px 0;
+    box-shadow:0 6px 0 #6e2400, 0 10px 20px rgba(0,0,0,.5);
+    cursor:pointer;
+  }
+  #swingBtn:active { transform:translateY(4px); box-shadow:0 2px 0 #6e2400; }
 
   /* ===== ガチャ演出オーバーレイ ===== */
   #overlay {
@@ -240,15 +321,39 @@
 
 <header>
   <h1>⚾ はんしんカードガチャ</h1>
-  <button id="soundBtn" aria-label="おと">🔊</button>
+  <div class="headRight">
+    <div id="coinBox">🪙 <span id="coinNum">0</span></div>
+    <button id="soundBtn" aria-label="おと">🔊</button>
+  </div>
 </header>
 
 <main>
   <!-- ガチャ画面 -->
   <section id="gachaScreen" class="screen active">
     <div class="machine">🐯</div>
-    <button id="pullBtn">ガチャをまわす!</button>
+    <button id="pullBtn">ガチャをまわす!<small>🪙100コインで1かい</small></button>
     <p id="collectionCount"></p>
+  </section>
+
+  <!-- ミニゲーム画面 -->
+  <section id="gameScreen" class="screen">
+    <div class="scoreRow">
+      <div>とくてん <b id="gRuns">0</b></div>
+      <div class="diamond"><span class="bs" id="bs2"></span><span class="bs" id="bs3"></span><span class="bs" id="bs1"></span></div>
+      <div>アウト <span id="gOuts">○○○</span></div>
+    </div>
+    <div id="field">
+      <div id="mound">🐯</div>
+      <div id="hitZone"></div>
+      <div id="gBall">⚾</div>
+      <div id="pitchMsg"></div>
+      <div id="gameCover">
+        <p class="big">⚾ バッティングゲーム ⚾</p>
+        <p style="font-size:14px">ボールが わっかに きたら スイング!<br>ジャストで <b style="color:#f7dc00">ホームラン🎉</b><br>3アウトまでに とくてんを とろう!<br><b style="color:#f7dc00">1てん = 🪙100コイン</b></p>
+        <button data-action="start">プレイボール!</button>
+      </div>
+    </div>
+    <button id="swingBtn">スイング!!</button>
   </section>
 
   <!-- ずかん画面 -->
@@ -265,6 +370,7 @@
 <!-- タブバー -->
 <nav>
   <button id="tabGacha" class="active"><span class="ic">🎰</span>ガチャ</button>
+  <button id="tabGame"><span class="ic">⚾</span>ミニゲーム</button>
   <button id="tabZukan"><span class="ic">📖</span>ずかん<span class="dot" id="newDot"></span></button>
 </nav>
 
@@ -311,6 +417,22 @@ const STORE_KEY = 'hanshin-gacha-v1';
 let col = {};
 try { col = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch(e) { col = {}; }
 const save = () => localStorage.setItem(STORE_KEY, JSON.stringify(col));
+
+// ===== コイン =====
+const COIN_KEY = 'hanshin-gacha-coins';
+const GACHA_COST = 100;
+const START_COINS = 1000;
+let coins = parseInt(localStorage.getItem(COIN_KEY) ?? String(START_COINS), 10);
+if (isNaN(coins) || coins < 0) coins = START_COINS;
+const saveCoins = () => localStorage.setItem(COIN_KEY, String(coins));
+function updateCoins(flash) {
+  $('coinNum').textContent = coins;
+  if (flash) {
+    $('coinBox').classList.remove('flash');
+    void $('coinBox').offsetWidth;
+    $('coinBox').classList.add('flash');
+  }
+}
 
 // ===== サウンド =====
 let soundOn = localStorage.getItem('hanshin-gacha-sound') !== 'off';
@@ -381,8 +503,15 @@ function startGacha() {
     alert('カードがまだないよ!\n「cards」フォルダに せんしゅの画像を入れてね。');
     return;
   }
-  busy = true;
   ensureAudio();
+  if (coins < GACHA_COST) {
+    if (confirm('コインがたりないよ! 😢\nミニゲームで あつめてこよう!')) showTab('game');
+    return;
+  }
+  busy = true;
+  coins -= GACHA_COST;
+  saveCoins();
+  updateCoins(true);
   current = drawCard();
   // 先に画像を読み込んでおく
   const pre = new Image(); pre.src = current.file;
@@ -500,18 +629,22 @@ function showModal(c) {
 $('cardModal').onclick = () => $('cardModal').classList.remove('show');
 
 $('resetLink').onclick = () => {
-  if (!confirm('あつめたカードのデータを ぜんぶ けしますか?')) return;
+  if (!confirm('あつめたカードのデータを ぜんぶ けしますか?\n(コインは ' + START_COINS + ' まいに もどります)')) return;
   if (!confirm('ほんとうに けしても いい?(もとに もどせません)')) return;
   col = {}; save();
+  coins = START_COINS; saveCoins(); updateCoins();
   renderZukan(); updateHome(); updateDot();
 };
 
 // ===== タブ切り替え =====
 function showTab(name) {
   $('gachaScreen').classList.toggle('active', name === 'gacha');
+  $('gameScreen').classList.toggle('active', name === 'game');
   $('zukanScreen').classList.toggle('active', name === 'zukan');
   $('tabGacha').classList.toggle('active', name === 'gacha');
+  $('tabGame').classList.toggle('active', name === 'game');
   $('tabZukan').classList.toggle('active', name === 'zukan');
+  if (name !== 'game') stopGame();
   if (name === 'zukan') {
     renderZukan();
     // NEWマークは見たら消す
@@ -523,6 +656,7 @@ function showTab(name) {
   }
 }
 $('tabGacha').onclick = () => showTab('gacha');
+$('tabGame').onclick = () => { ensureAudio(); showTab('game'); };
 $('tabZukan').onclick = () => showTab('zukan');
 
 function updateHome() {
@@ -534,8 +668,156 @@ function updateDot() {
   $('newDot').classList.toggle('show', anyNew);
 }
 
+// ===== バッティングミニゲーム =====
+const HIT_JUDGE = [
+  { max: 75,  label:'🎉 ホームラン!!', adv:4 },
+  { max: 150, label:'💨 スリーベース!', adv:3 },
+  { max: 230, label:'✨ ツーベース!',   adv:2 },
+  { max: 330, label:'⚡ ヒット!',       adv:1 },
+];
+const COVER_START = `
+  <p class="big">⚾ バッティングゲーム ⚾</p>
+  <p style="font-size:14px">ボールが わっかに きたら スイング!<br>ジャストで <b style="color:#f7dc00">ホームラン🎉</b><br>3アウトまでに とくてんを とろう!<br><b style="color:#f7dc00">1てん = 🪙100コイン</b></p>
+  <button data-action="start">プレイボール!</button>`;
+let g = null;
+
+function sndPitch() { beep(700, .12, 0, 'sine', .1); beep(450, .1, .1, 'sine', .08); }
+function sndHit()   { beep(160, .07, 0, 'square', .3); beep(1300, .12, .02, 'square', .15); beep(880, .2, .06, 'triangle', .2); }
+function sndOut()   { beep(230, .2, 0, 'sawtooth', .12); beep(150, .35, .18, 'sawtooth', .12); }
+
+function updateGameHUD() {
+  const outs = g ? g.outs : 0;
+  $('gRuns').textContent = g ? g.runs : 0;
+  $('gOuts').textContent = '●'.repeat(outs) + '○'.repeat(3 - outs);
+  const b = g ? g.bases : [false, false, false];
+  $('bs1').classList.toggle('on', b[0]);
+  $('bs2').classList.toggle('on', b[1]);
+  $('bs3').classList.toggle('on', b[2]);
+}
+
+function startGame() {
+  ensureAudio();
+  g = { outs:0, runs:0, bases:[false,false,false], pitching:false, swung:false, t0:0, dur:0, raf:0, timer:0 };
+  $('gameCover').classList.add('hide');
+  $('pitchMsg').textContent = '';
+  updateGameHUD();
+  g.timer = setTimeout(nextPitch, 700);
+}
+
+function stopGame() {
+  if (!g) return;
+  cancelAnimationFrame(g.raf);
+  clearTimeout(g.timer);
+  g = null;
+  $('gBall').style.display = 'none';
+  $('mound').classList.remove('throwing');
+  $('pitchMsg').textContent = '';
+  $('gameCover').innerHTML = COVER_START;
+  $('gameCover').classList.remove('hide');
+  updateGameHUD();
+}
+
+function nextPitch() {
+  if (!g) return;
+  g.pitching = true;
+  g.swung = false;
+  g.dur = 900 + Math.random() * 500;  // 球速をランダムに
+  $('pitchMsg').textContent = '';
+  $('mound').classList.add('throwing');
+  setTimeout(() => $('mound').classList.remove('throwing'), 300);
+  sndPitch();
+  const ball = $('gBall');
+  ball.style.display = 'block';
+  g.t0 = performance.now();
+  const step = (now) => {
+    if (!g || !g.pitching) return;
+    const p = (now - g.t0) / g.dur;
+    if (p >= 1.35 && !g.swung) { judgeSwing(null); return; } // 見逃し
+    const pc = Math.min(p, 1.12);
+    ball.style.top = (14 + pc * 64) + '%';
+    ball.style.transform = `translate(-50%,-50%) scale(${0.4 + pc * 0.95})`;
+    g.raf = requestAnimationFrame(step);
+  };
+  g.raf = requestAnimationFrame(step);
+}
+
+function swing() {
+  if (!g || !g.pitching || g.swung) return;
+  g.swung = true;
+  judgeSwing(performance.now() - (g.t0 + g.dur));
+}
+
+function applyHit(adv) {
+  let scored = 0;
+  const nb = [false, false, false];
+  for (let i = 2; i >= 0; i--) {
+    if (!g.bases[i]) continue;
+    if (i + adv >= 3) scored++; else nb[i + adv] = true;
+  }
+  if (adv >= 4) scored++; else nb[adv - 1] = true;
+  g.bases = nb;
+  g.runs += scored;
+}
+
+function judgeSwing(diff) {
+  if (!g) return;
+  g.pitching = false;
+  cancelAnimationFrame(g.raf);
+  $('gBall').style.display = 'none';
+  let res = null;
+  if (diff !== null) {
+    const ad = Math.abs(diff);
+    res = HIT_JUDGE.find(h => ad <= h.max) || null;
+  }
+  if (res) {
+    applyHit(res.adv);
+    $('pitchMsg').textContent = res.label;
+    if (res.adv === 4) { sndReveal('UR'); confetti(60); } else { sndHit(); }
+  } else {
+    g.outs++;
+    $('pitchMsg').textContent = diff === null ? 'みのがし…' : 'アウト…';
+    sndOut();
+  }
+  updateGameHUD();
+  g.timer = setTimeout(g.outs >= 3 ? endGame : nextPitch, g.outs >= 3 ? 1100 : 1400);
+}
+
+function endGame() {
+  if (!g) return;
+  const runs = g.runs;
+  const got = runs * 100;
+  g = null;
+  coins += got;
+  saveCoins();
+  updateCoins(got > 0);
+  $('gBall').style.display = 'none';
+  $('pitchMsg').textContent = '';
+  $('gameCover').innerHTML = got > 0
+    ? `<p class="big">しあい しゅうりょう!</p>
+       <p style="font-size:16px">とくてん <b style="color:#f7dc00;font-size:26px">${runs}</b> てん!</p>
+       <p class="big">🪙 ${got} コイン ゲット!</p>
+       <div style="display:flex;gap:12px">
+         <button data-action="start">もういちど!</button>
+         <button data-action="gacha" style="background:#333;color:#fff;box-shadow:0 5px 0 #000">ガチャへ</button>
+       </div>`
+    : `<p class="big">しあい しゅうりょう…</p>
+       <p style="font-size:15px">0てんだった… 😢<br>つぎは がんばろう!</p>
+       <button data-action="start">もういちど!</button>`;
+  $('gameCover').classList.remove('hide');
+  if (got > 0) { sndReveal('SR'); confetti(40); }
+}
+
+$('swingBtn').onclick = swing;
+$('gameCover').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  if (btn.dataset.action === 'start') startGame();
+  if (btn.dataset.action === 'gacha') showTab('gacha');
+});
+
 updateHome();
 updateDot();
+updateCoins();
 
 // ===== PWA =====
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
