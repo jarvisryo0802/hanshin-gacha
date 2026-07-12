@@ -135,6 +135,26 @@
     text-shadow:0 3px 10px rgba(0,0,0,.8);
     pointer-events:none;
   }
+  .scorePop {
+    display:inline-block; color:#f7dc00; font-size:42px; line-height:1.3;
+    text-shadow:0 0 24px rgba(247,220,0,.9), 0 4px 12px rgba(0,0,0,.9);
+    animation: scorePop .9s cubic-bezier(.2,2.2,.4,1);
+  }
+  @keyframes scorePop {
+    0% { transform:scale(0) rotate(-10deg); }
+    55% { transform:scale(1.35) rotate(3deg); }
+    100% { transform:scale(1) rotate(0); }
+  }
+  #scoreFlash {
+    position:absolute; inset:0; z-index:4; pointer-events:none;
+    background:radial-gradient(circle, rgba(247,220,0,.45) 0%, transparent 70%);
+    opacity:0;
+  }
+  #scoreFlash.go { animation: scoreFlashAnim 1s ease-out; }
+  @keyframes scoreFlashAnim { 0%{opacity:0} 25%{opacity:1} 100%{opacity:0} }
+  #gRuns { display:inline-block; }
+  #gRuns.pulse { animation: runsPulse .9s; }
+  @keyframes runsPulse { 35% { transform:scale(2); color:#fff; text-shadow:0 0 14px #f7dc00; } }
   #gameCover {
     position:absolute; inset:0; z-index:8;
     background:rgba(0,0,0,.72);
@@ -356,6 +376,7 @@
       <div id="plate"></div>
       <div id="batterWrap"><span>🐯</span><div id="bat"></div></div>
       <div id="gBall">⚾</div>
+      <div id="scoreFlash"></div>
       <div id="pitchMsg"></div>
       <div id="gameCover">
         <p class="big">⚾ バッティングゲーム ⚾</p>
@@ -685,10 +706,10 @@ function updateDot() {
 
 // ===== バッティングミニゲーム =====
 const HIT_JUDGE = [
-  { max: 20,  label:'🎉 ホームラン!!', adv:4 },
-  { max: 45,  label:'💨 スリーベース!', adv:3 },
-  { max: 90,  label:'✨ ツーベース!',   adv:2 },
-  { max: 150, label:'⚡ ヒット!',       adv:1 },
+  { max: 15,  label:'🎉 ホームラン!!', adv:4 },
+  { max: 35,  label:'💨 スリーベース!', adv:3 },
+  { max: 70,  label:'✨ ツーベース!',   adv:2 },
+  { max: 120, label:'⚡ ヒット!',       adv:1 },
 ];
 const COVER_START = `
   <p class="big">⚾ バッティングゲーム ⚾</p>
@@ -736,6 +757,15 @@ let g = null;
 function sndPitch() { beep(700, .12, 0, 'sine', .1); beep(450, .1, .1, 'sine', .08); }
 function sndHit()   { beep(160, .07, 0, 'square', .3); beep(1300, .12, .02, 'square', .15); beep(880, .2, .06, 'triangle', .2); }
 function sndOut()   { beep(230, .2, 0, 'sawtooth', .12); beep(150, .35, .18, 'sawtooth', .12); }
+function sndScore() {
+  // 得点ファンファーレ(チャンチャチャチャッチャッチャー!)
+  beep(131, .5, 0, 'sawtooth', .15);
+  beep(523, .13, 0,   'square', .18); beep(659, .13, .13, 'square', .18);
+  beep(784, .13, .26, 'square', .18); beep(1047, .3, .39, 'square', .2);
+  beep(784, .12, .62, 'triangle', .2); beep(1047, .12, .74, 'triangle', .2);
+  beep(1319, .55, .86, 'triangle', .24);
+  beep(165, .5, .62, 'sawtooth', .13);
+}
 
 function updateGameHUD() {
   const outs = g ? g.outs : 0;
@@ -749,7 +779,7 @@ function updateGameHUD() {
 
 function startGame() {
   ensureAudio();
-  g = { outs:0, runs:0, bases:[false,false,false], pitching:false, swung:false, t0:0, dur:0, raf:0, timer:0 };
+  g = { outs:0, runs:0, bases:[false,false,false], pitching:false, swung:false, t0:0, dur:0, raf:0, timer:0, fxTimer:0 };
   $('gameCover').classList.add('hide');
   $('pitchMsg').textContent = '';
   updateGameHUD();
@@ -762,6 +792,7 @@ function stopGame() {
   if (!g) return;
   cancelAnimationFrame(g.raf);
   clearTimeout(g.timer);
+  clearTimeout(g.fxTimer);
   g = null;
   $('gBall').style.display = 'none';
   $('mound').classList.remove('throwing');
@@ -839,6 +870,19 @@ function applyHit(adv) {
   if (adv >= 4) scored++; else nb[adv - 1] = true;
   g.bases = nb;
   g.runs += scored;
+  return scored;
+}
+
+function showScoreFx(n) {
+  $('pitchMsg').innerHTML = `<span class="scorePop">🎉 ${n}てん はいった!! 🎉<br>ホームイン!</span>`;
+  $('scoreFlash').classList.remove('go');
+  void $('scoreFlash').offsetWidth;
+  $('scoreFlash').classList.add('go');
+  $('gRuns').classList.remove('pulse');
+  void $('gRuns').offsetWidth;
+  $('gRuns').classList.add('pulse');
+  sndScore();
+  confetti(70);
 }
 
 function judgeSwing(diff) {
@@ -853,9 +897,11 @@ function judgeSwing(diff) {
     res = HIT_JUDGE.find(h => ad <= h.max) || null;
   }
   if (res) {
-    applyHit(res.adv);
+    const scored = applyHit(res.adv);
     $('pitchMsg').textContent = res.label;
     if (res.adv === 4) { sndReveal('UR'); confetti(60); } else { sndHit(); }
+    // 少し間をおいて得点演出(ランナーが帰ってくるイメージ)
+    if (scored > 0) g.fxTimer = setTimeout(() => { if (g) showScoreFx(scored); }, 900);
   } else {
     g.outs++;
     $('pitchMsg').textContent = diff === null ? 'みのがし…'
